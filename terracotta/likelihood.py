@@ -2,6 +2,7 @@ import numpy as np
 from numpy.linalg import matrix_power
 from numba import njit, prange
 import scipy
+from .migration_matrix import calc_composite_likelihood_for_parameters
 
 
 @njit()
@@ -561,7 +562,7 @@ def calc_composite_likelihood_for_parameters(
         Log-likelihood of the parameter combination
     """
 
-    backward_transition_matrices = world_map.build_transition_matrices(parameters=parameters, direction="backward")
+    backward_transition_matrices = build_transition_matrices(world_map=world_map, parameters=parameters, direction="backward")
     
     exponentiated_backward_transition_matrices = np.zeros(backward_transition_matrices.shape)
     precalculated_full_epoch_branch_lengths = np.zeros(backward_transition_matrices.shape)
@@ -593,114 +594,3 @@ def calc_composite_likelihood_for_parameters(
     if verbose:
         print(parameters, composite_likelihood, flush=True)
     return composite_likelihood
-
-
-
-
-
-
-if __name__ == "__main__":
-    # Tree
-    # --------
-    #   -2-
-    #  |   |
-    # 1|   |1
-    #  |   |
-    #  0   1
-
-    ids_asc_time = np.array([0, 1, 2])
-    parents = np.array([2, 2, -1])
-    branch_above = np.array([
-        [1, 1, 0]
-    ])
-    node_epoch = np.array([0, 0, 0])
-    sample_ids = np.array([0, 1])
-
-    # World map
-    # ---------
-    # ID:           0  --  1  --  2  --  3  --  4  --  5  --  6  --  7  --  8  --  9 
-    # Suitability: 0.1 -- 0.2 -- 0.3 -- 0.4 -- 0.5 -- 0.6 -- 0.7 -- 0.8 -- 0.9 -- 1.0
-    # Samples:                    0                                  1
-
-    s = np.array([
-        [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
-    ])
-    coal_rates = 1/s
-    coal_rates_log = np.log(coal_rates)
-
-    sample_locations_array = np.array([
-        [0, 0, 1.0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 1.0, 0, 0]
-    ])
-    sample_locations_array = np.maximum(sample_locations_array, 1e-99)
-    sample_locations_array_log = np.log(sample_locations_array)
-
-    # Equation 1 from manuscript - b not included so assume that b = 1.
-    m = 1
-    a = 1
-    s = s**a
-    
-    backward_transition_matrices = np.array([
-        [
-            [-(m*(s[0][1]/s[0][0])), m*(s[0][0]/s[0][1]), 0, 0, 0, 0, 0, 0, 0, 0],
-            [m*(s[0][1]/s[0][0]), -(m*(s[0][0]/s[0][1])+m*(s[0][2]/s[0][1])), m*(s[0][1]/s[0][2]), 0, 0, 0, 0, 0, 0, 0],
-            [0, m*(s[0][2]/s[0][1]), -(m*(s[0][1]/s[0][2])+m*(s[0][3]/s[0][2])), m*(s[0][2]/s[0][3]), 0, 0, 0, 0, 0, 0],
-            [0, 0, m*(s[0][3]/s[0][2]), -(m*(s[0][2]/s[0][3])+m*(s[0][4]/s[0][3])), m*(s[0][3]/s[0][4]), 0, 0, 0, 0, 0],
-            [0, 0, 0, m*(s[0][4]/s[0][3]), -(m*(s[0][3]/s[0][4])+m*(s[0][5]/s[0][4])), m*(s[0][4]/s[0][5]), 0, 0, 0, 0],
-            [0, 0, 0, 0, m*(s[0][5]/s[0][4]), -(m*(s[0][4]/s[0][5])+m*(s[0][6]/s[0][5])), m*(s[0][5]/s[0][6]), 0, 0, 0],
-            [0, 0, 0, 0, 0, m*(s[0][6]/s[0][5]), -(m*(s[0][5]/s[0][6])+m*(s[0][7]/s[0][6])), m*(s[0][6]/s[0][7]), 0, 0],
-            [0, 0, 0, 0, 0, 0, m*(s[0][7]/s[0][6]), -(m*(s[0][6]/s[0][7])+m*(s[0][8]/s[0][7])), m*(s[0][7]/s[0][8]), 0],
-            [0, 0, 0, 0, 0, 0, 0, m*(s[0][8]/s[0][7]), -(m*(s[0][7]/s[0][8])+m*(s[0][9]/s[0][8])), m*(s[0][8]/s[0][9])],
-            [0, 0, 0, 0, 0, 0, 0, 0, m*(s[0][9]/s[0][8]), -(m*(s[0][8]/s[0][9]))]
-        ]
-    ])
-
-    exponentiated_backward_transition_matrices = np.zeros(backward_transition_matrices.shape)
-    for i in range(len(backward_transition_matrices)):
-        exponentiated_backward_transition_matrices[i] = scipy.linalg.expm(backward_transition_matrices[i])
-
-    unique_branch_lengths = []
-    for e in range(len(branch_above)):
-        unique_branch_lengths.append(np.unique(branch_above[e]))
-
-    #precalculated_transitions = precalculate_transitions(unique_branch_lengths, transition_matrices)
-    #precalculated_transitions = np.maximum(1e-99, precalculated_transitions)
-    #precalculated_transitions_log = np.log(precalculated_transitions)
-
-    like, messages = calc_backward_messages(
-        parents,
-        branch_above,
-        node_epoch,
-        ids_asc_time,
-        sample_locations_array,
-        sample_ids,
-        backward_transition_matrices,
-        coal_rates
-    )
-    print(like)
-
-    like, messages = calc_backward_messages_pre(
-        parents,
-        branch_above,
-        node_epoch,
-        ids_asc_time,
-        sample_locations_array,
-        sample_ids,
-        exponentiated_backward_transition_matrices,
-        coal_rates
-    )
-    print(like)
-
-    exit()
-
-    like = likelihood_of_tree_log(
-        parents,
-        branch_above,
-        node_epoch,
-        ids_asc_time,
-        sample_locations_array_log,
-        sample_ids,
-        backward_transition_matrices,
-        coal_rates_log
-    )
-    print(like)

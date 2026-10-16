@@ -38,9 +38,23 @@ class WorldMap:
     Attributes
     ----------
     demes : pandas.DataFrame
+        Information about demes, one row per deme. Mandatory columns are `id` and `suitability`, often includes `xcoord` and `ycoord` for plotting
     connections : pandas.DataFrame
+        Information about connections between demes. Mandatory columns are `id`, `deme_0`, `deme_1`, and `migration_modifier`. ID in `deme_0` must be smaller than ID in `deme_1`
     samples : pandas.DataFrame
+        Information about sample locations. Mandatory columns `id` and `deme`
     epochs : numpy.ndarray
+        Increasing epoch timings (back in time) based on changes noted in the `demes.suitability` and `connections.migration_modifier` columns
+    epoch_durations : numpy.ndarray
+        Ordered epoch durations, built directly from `epochs`
+    sample_locations : numpy.ndarray
+        Probability of finding each sample in each deme (#samples x #demes)
+    suitabilities : numpy.ndarray
+        2D array which contains suitability information for all demes over time (#epochs x #demes). Order is the same as `epochs` and `demes.id`
+    migration_modifiers : numpy.ndarray
+        2D array which contains migration modifiers for all connections over time (#epochs x #connections). Order is the same as `epochs` and `connections.id`
+    parameters : numpy.ndarray
+        Available variables within the map, including the default migration rate ("coefficient") and any variables in the `migration.migration_modifier` column
     """
 
     def __init__(self, demes, connections, samples=None):
@@ -54,14 +68,6 @@ class WorldMap:
             From connections.tsv file
         samples : pandas.DataFrame
             From samples.tsv file (optional)
-
-        Attributes
-        ----------
-        demes
-        connections
-        samples
-        epochs
-        parameters
         """
 
         self.parameters = ["coefficient"]
@@ -97,18 +103,20 @@ class WorldMap:
         self.epochs = np.sort(epochs)
         self.epoch_durations = np.diff(self.epochs, append=(self.epochs[-1]-1))
 
-        self.suitabilities = self._build_suitability_array()
+        self.suitabilities = self._build_suitabilities_array()
 
-        self.connection_modifiers = self._build_connection_modifiers_array()
-        modifiers = np.unique(self.connection_modifiers)
+        self.migration_modifiers = self._build_migration_modifiers_array()
+        modifiers = np.unique(self.migration_modifiers)
         if len(modifiers) > 1:
             for mod in modifiers:
                 if any(char.isalpha() for char in mod):
                     self.parameters.append(mod)
     
         self.samples = None
+        self.sample_locations = None
         if samples is not None:
             self.samples = samples.copy()
+            self.sample_locations = self._build_sample_locations_array()
     
     def get_deme_suitability_at_time(self, id, time):
         """Gets the type for specified deme
@@ -182,84 +190,28 @@ class WorldMap:
     def get_all_connection_migration_modifiers_at_time(self, time):
         return pd.Series([self.get_connection_migration_modifier_at_time(id, time) for id in self.connections["id"]])
 
-    def _calculate_migration_rate(self, epoch, connection, deme_0, deme_1, parameters, direction="backward"):
-        """Migration rate is default rate * suit(deme_1)/suit(deme_1) * modifier"""
-
-        if "coefficient" in self.parameters:
-            m = parameters[self.parameters.index("coefficient")]
-        else:
-            m = 1
-
-        denom = self.suitabilities[epoch][deme_0]
-        if denom == 0:
-            denom = 1e-99
-        suit = (self.suitabilities[epoch][deme_1] / denom)
-        mod = self.connection_modifiers[epoch][connection]
-        if mod in self.parameters:
-            mod = parameters[self.parameters.index(mod)]
-        else:
-            mod = float(mod)
-        if direction == "backward":
-            rate = (m * suit) * mod
-        else:
-            rate = m * mod
-        return rate
-
-    def build_transition_matrices(self, parameters, direction="backward"):
-        """Builds the transition matrix based on the world map and migration rate parameters
-
-        Row is the target deme, column is the source deme backwards in time.
-
-        Parameters
-        ----------
-        parameters : np.array or list
-        
-        Returns
-        -------
-        transition_matrix : np.array
-        """
-
-        if len(parameters) != len(self.parameters):
-            raise RuntimeError("Length of `parameters` does not equal WorldMap.parameters. You must provide values for all parameters, in order.")
-    
-        transition_matrix = np.zeros((len(self.epochs), len(self.demes),len(self.demes)))
-        for e in range(len(self.epochs)):
-            for f,connection in self.connections.iterrows():
-                
-                i_0 = self.demes.loc[self.demes["id"]==connection["deme_0"]].index[0]
-                i_1 = self.demes.loc[self.demes["id"]==connection["deme_1"]].index[0]                
-                transition_matrix[e, i_1, i_0] = self._calculate_migration_rate(epoch=e, connection=f, deme_0=i_0, deme_1=i_1, parameters=parameters, direction=direction)
-                transition_matrix[e, i_0, i_1] = self._calculate_migration_rate(epoch=e, connection=f, deme_0=i_1, deme_1=i_0, parameters=parameters, direction=direction)
-
-            diag = -np.sum(transition_matrix[e], axis=0)
-            np.fill_diagonal(transition_matrix[e], diag)
-        return transition_matrix
-
-    def build_sample_locations_array(self):
+    def _build_sample_locations_array(self):
         """Formats the sample locations into probability distribution vectors
 
         Returns
         -------
         sample_locations_array : numpy.ndarray
             Probability distribution vector for each sample location (generally 0 in all demes except one)
-        sample_ids : numpy.ndarray
-            Order of sample IDs for `sample_locations_array`
         """
 
         if (self.samples is None):
             raise RuntimeError("No samples provided. Check that you've added samples to your WorldMap.")
         sample_locations_array = np.zeros((len(self.samples), len(self.demes)), dtype="float64")
-        sample_ids = np.array(self.samples["id"])
         for i, sample in self.samples.iterrows():
             sample_locations_array[i,self.demes.loc[self.demes["id"]==sample["deme"]].index[0]] = 1
-        return sample_locations_array, sample_ids
+        return sample_locations_array
 
-    def _build_suitability_array(self):
-        """Builds the suitability array
+    def _build_suitabilities_array(self):
+        """Builds the suitability array described in class attributes
 
         Returns
         -------
-        suitabilities :
+        suitabilities
         """
 
         suitabilities = np.zeros((len(self.epochs), len(self.demes)), dtype="float")
@@ -267,7 +219,14 @@ class WorldMap:
             suitabilities[i] = self.get_all_deme_suitabilities_at_time(epoch)
         return suitabilities
     
-    def _build_connection_modifiers_array(self):
+    def _build_migration_modifiers_array(self):
+        """Builds the migration modifier array described in class attributes
+
+        Returns
+        -------
+        modifiers
+        """
+
         modifiers = np.zeros((len(self.epochs), len(self.connections)), dtype="object")
         for i,epoch in enumerate(self.epochs):
             modifiers[i] = self.get_all_connection_migration_modifiers_at_time(epoch)

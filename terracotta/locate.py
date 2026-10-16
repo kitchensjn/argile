@@ -1,6 +1,7 @@
 import numpy as np
 from scipy import linalg
 from .main import deconstruct_tree
+from .migration_matrix import build_transition_matrices
 
 
 def calc_current_pos(id, messages, parents, coal_rate):
@@ -188,11 +189,13 @@ def track_lineage_over_time(
     else:
         alpha = 1
 
-    sample_locations_array, sample_ids = world_map.build_sample_locations_array()
+    
+    sample_locations_array = world_map.sample_locations
+    sample_ids = np.array(world_map.samples["id"])
     parents, branch_above, node_epoch, time_bin_widths, ids_asc_time = deconstruct_tree(tree, world_map.epochs)
     
-    backward_transition_matrices = world_map.build_transition_matrices(parameters=parameters, direction="backward")
-    forward_transition_matrices = world_map.build_transition_matrices(parameters=parameters, direction="forward")
+    backward_transition_matrices = build_transition_matrices(world_map=world_map, parameters=parameters, direction="backward")
+    forward_transition_matrices = build_transition_matrices(world_map=world_map, parameters=parameters, direction="forward")
 
     pop_sizes = np.maximum(world_map.suitabilities ** alpha, 1e-99)
     coal_rates = 1/(np.maximum(pop_sizes, 0.1))
