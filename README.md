@@ -1,7 +1,7 @@
 ![Logo](devlog/20241202/assets/logo.png)
 
 
-`terracotta` is a Python package for estimating migration surfaces and the locations of genetic ancestors from gene trees and/or small ancestral recombination graphs. **This package is in early development, so there may be rapid/breaking changes to the functionality and options going forward.**
+`terra_cotta` is a Python package for estimating migration surfaces and the locations of genetic ancestors from gene trees.
 
 ### Creating environment
 
@@ -9,7 +9,7 @@ Download the `.zip` of the repository from GitHub. This tutorial uses `conda` to
 
 ```
 conda env create -f environment.yml
-conda activate terracotta
+conda activate terra_cotta
 ```
 
 ### Tutorial - Example dataset
@@ -24,16 +24,14 @@ Within the [example_dataset/](https://github.com/kitchensjn/terracotta/tree/main
 
 This is a tab separated file with four mandatory columns:
 - `id`: integer ID of the deme
-- `xcoord`: x-coordinate of deme for plotting
-- `ycoord`: y-coordinate of deme for plotting
 - `suitability`: either a float or a string with the format `time:suitability,time:suitability,...` if the suitability changes through time
 
 ##### connections.tsv
 
 This is a tab separated file with four mandatory columns:
 - `id`: integer ID of the connection
-- `deme_0`: ID for the source deme of the edge (matching `demes.tsv`)
-- `deme_1`: ID for the target deme of the edge (matching `demes.tsv`)
+- `deme_0`: smaller of the two deme IDs connected by the edge (matching `demes.tsv`)
+- `deme_1`: larger of the two deme IDs connected by the edge (matching `demes.tsv`)
 - `migration_modifier`: either a float (if known), string (if unknown), or a string with the format `time:modifier,time:modifier,...` if the modifier changes through time 
 
 ##### samples.tsv
@@ -50,7 +48,7 @@ This folder contains all of the gene trees stored as `tskit` tree files, each wi
 #### Estimate the most likely migration surface
 
 ```
-import terracotta as tct
+import terra_cotta as tct
 
 result, loglikelihood = tct.run(
     demes_path="dataset/demes.tsv",
@@ -61,14 +59,14 @@ result, loglikelihood = tct.run(
 )
 ```
 
-`terracotta.run()` estimates the most likely migration surface using the `Nelder-Mead` hill-climbing algorithm. Here, it estimates two unknown parameters: `coefficient` (the default migration rate) and `alpha` (the exponent of the suitability ratio). Migration rate modifier variables will be automatically included in this search if present in `connections.tsv`.
+`terra_cotta.run()` estimates the most likely migration surface using the `Nelder-Mead` hill-climbing algorithm. Here, it estimates two unknown parameters: `coefficient` (the default migration rate) and `alpha` (the exponent of the suitability ratio). Migration rate modifier variables will be automatically included in this search if present in `connections.tsv`.
 
 
 #### Loading the world map
 
 ```
 import pandas as pd
-import terracotta as tct
+import terra_cotta as tct
 
 demes = pd.read_csv("demes.tsv", sep="\t")
 connections = pd.read_csv("connections.tsv", sep="\t")
