@@ -8,15 +8,18 @@ keywords = [
     "population genetics",
     "tree sequence",
     "ancestral recombination graph",
-    "space",
-    "spatial analysis"
+    "gene tree",
+    "spatial analysis",
+    "migration",
+    "location"
 ]
 requires-python = ">=3.7"
 dependencies = [
+    "numpy",
+    "numba",
+    "scipy",
     "pandas",
-    "msprime",
-    "IPython",
-    "tqdm"
+    "tskit"
 ]
 classifiers = [
     "Programming Language :: Python",
@@ -38,9 +41,9 @@ classifiers = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/kitchensjn/tskit_arg_visualizer"
-"Changelog" = "https://github.com/kitchensjn/tskit_arg_visualizer/blob/main/CHANGELOG.rst"
-"Bug Tracker" = "https://github.com/kitchensjn/tskit_arg_visualizer/issues"
+"Homepage" = "https://github.com/kitchensjn/terra_cotta"
+"Changelog" = "https://github.com/kitchensjn/terra_cotta/blob/main/CHANGELOG.rst"
+"Bug Tracker" = "https://github.com/kitchensjn/terra_cotta/issues"
 
 [build-system]
 requires = [
@@ -53,4 +56,4 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
-write_to = "tskit_arg_visualizer/_version.py"
+write_to = "terra_cotta/_version.py"
