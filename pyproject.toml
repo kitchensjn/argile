@@ -3,6 +3,7 @@ name = "argile"
 version = "0.0.1"
 authors = [{name="James Kitchens",email="kitchensjn@gmail.com"}]
 description = "Estimating migration surfaces and the locations of genetic ancestors from gene trees"
+license = "MIT"
 readme = "README.md"
 keywords = [
     "population genetics",
@@ -29,7 +30,6 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3 :: Only",
-    "License :: OSI Approved :: MIT License",
     "Development Status :: 3 - Alpha",
     "Environment :: Other Environment",
     "Intended Audience :: Science/Research",
@@ -54,6 +54,3 @@ requires = [
 ]
 
 build-backend = "setuptools.build_meta"
-
-[tool.setuptools_scm]
-write_to = "argile/_version.py"
