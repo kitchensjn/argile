@@ -1,5 +1,0 @@
-numpy
-numba
-scipy
-pandas
-tskit
