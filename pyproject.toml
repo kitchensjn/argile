@@ -1,6 +1,6 @@
 [project]
-name = "terra_cotta"
-version = "0.1.0"
+name = "argile"
+version = "0.0.1"
 authors = [{name="James Kitchens",email="kitchensjn@gmail.com"}]
 description = "Estimating migration surfaces and the locations of genetic ancestors from gene trees"
 readme = "README.md"
@@ -41,9 +41,9 @@ classifiers = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/kitchensjn/terra_cotta"
-"Changelog" = "https://github.com/kitchensjn/terra_cotta/blob/main/CHANGELOG.rst"
-"Bug Tracker" = "https://github.com/kitchensjn/terra_cotta/issues"
+"Homepage" = "https://github.com/kitchensjn/argile"
+"Changelog" = "https://github.com/kitchensjn/argile/blob/main/CHANGELOG.rst"
+"Bug Tracker" = "https://github.com/kitchensjn/argile/issues"
 
 [build-system]
 requires = [
@@ -56,4 +56,4 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
-write_to = "terra_cotta/_version.py"
+write_to = "argile/_version.py"
