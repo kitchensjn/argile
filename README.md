@@ -16,7 +16,7 @@ result, loglikelihood = argile.run(
 )
 ```
 
-`argile.run()` estimates the most likely migration surface using the `L-BFGS-B` algorithm. It estimates values for the `coefficient` (the default migration rate) and any migration rate modifier variables (here `r0`, `r1`, and `r2`). These variables will be automatically included in this search if present in `connections.tsv`. This fucntion takes the paths to the files as input rather than loading the world map prior.
+`argile.run()` estimates the most likely migration surface using the `L-BFGS-B` algorithm. It estimates values for the `coefficient` (the default migration rate) and any migration rate modifier variables (here `r0`, `r1`, and `r2`). These variables will be automatically included in this search if present in `connections.tsv`. This function takes the paths to the files as input rather than loading the world map prior.
 
 
 #### Loading the world map
