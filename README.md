@@ -1,4 +1,4 @@
-# `argile`
+![argile logo](logo.png)
 
 `argile` (formerly `terracotta`) is a Python package for estimating migration surfaces and the locations of genetic ancestors from gene trees. The latest release is available either here on GitHub or through [PyPI](https://pypi.org/project/argile/). See [example_dataset/](https://github.com/kitchensjn/argile/tree/main/example_dataset) for details about file formats.
 
