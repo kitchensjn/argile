@@ -177,7 +177,8 @@ def run_for_parameters(
     samples = pd.read_csv(samples_path, sep="\t")
     world_map = WorldMap(demes, connections, samples)
 
-    sample_locations_array, sample_ids = world_map.build_sample_locations_array()
+    sample_locations_array = world_map.sample_locations
+    sample_ids = np.array(world_map.samples["id"])
     sample_locations_array = np.maximum(sample_locations_array, 1e-99)
     sample_locations_array_log = np.log(sample_locations_array)
 
@@ -276,7 +277,7 @@ def run(
     for p in world_map.parameters:
         if p == "coefficient":
             start.append(np.log(0.0001))
-            bounds.append((-10, 10))
+            bounds.append((-10, 0))
         elif p == "alpha":
             start.append(1)
             bounds.append((0, 1))
