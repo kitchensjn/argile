@@ -9,17 +9,20 @@ def _calculate_migration_rate(world_map, epoch, connection, deme_0, deme_1, para
     else:
         m = 1
 
-    denom = world_map.suitabilities[epoch][deme_0]
-    if denom == 0:
-        denom = 1e-99
-    suit = (world_map.suitabilities[epoch][deme_1] / denom)
+    suit_0 = world_map.suitabilities[epoch][deme_0]
+    suit_1 = world_map.suitabilities[epoch][deme_1]
+    if suit_0 == 0 or suit_1 == 0:
+        suit_ratio = 0
+    else:
+        suit_ratio = min(suit_1/suit_0, 1000000)
+
     mod = world_map.migration_modifiers[epoch][connection]
     if mod in world_map.parameters:
         mod = parameters[world_map.parameters.index(mod)]
     else:
         mod = float(mod)
     if direction == "backward":
-        rate = (m * suit) * mod
+        rate = (m * suit_ratio) * mod
     else:
         rate = m * mod
     return rate
