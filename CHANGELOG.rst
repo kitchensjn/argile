@@ -1,5 +1,5 @@
 --------------------
-[0.0.4] - 2026-11-17
+[0.0.4] - 2026-11-19
 --------------------
 
 Slightly speed up likelihood calculation when there are many uncoalesced lineages
