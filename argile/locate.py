@@ -116,18 +116,19 @@ def calc_all_messages(
         else:   # collect roots here
             messages[id] = current_pos
     for id in ids_asc_time[::-1]:
-        parent_of = np.where(parents==id)[0]
-        for c in range(len(parent_of)):
-            alt_children = np.delete(parent_of, c)
-            current_pos = np.prod(np.concatenate((messages[[id+len(parents)]], messages[alt_children])), axis=0)
-            if len(alt_children) > 0:
-                current_pos = np.multiply(coal_rates[node_epoch[id]], current_pos)
-            current_pos = current_pos / sum(current_pos)
-            messages[parent_of[c]+len(parents)] = calc_branch_message(
-                current_pos,
-                branch_above[parent_of[c]],
-                forward_transition_matrices
-            )
+        if id != -1:
+            parent_of = np.where(parents==id)[0]
+            for c in range(len(parent_of)):
+                alt_children = np.delete(parent_of, c)
+                current_pos = np.prod(np.concatenate((messages[[id+len(parents)]], messages[alt_children])), axis=0)
+                if len(alt_children) > 0:
+                    current_pos = np.multiply(coal_rates[node_epoch[id]], current_pos)
+                current_pos = current_pos / sum(current_pos)
+                messages[parent_of[c]+len(parents)] = calc_branch_message(
+                    current_pos,
+                    branch_above[parent_of[c]],
+                    forward_transition_matrices
+                )
     return messages
 
 def trace_ancestors(start, parents):
@@ -233,6 +234,7 @@ def track_lineage_over_time(
             if node_combo[1] in sample_ids:
                 parent_pos = sample_locations_array[np.where(sample_ids==node_combo[1])[0][0]]
             else:
+                
                 backward_messages = np.where(parents==node_combo[1])[0]
                 backward_messages = backward_messages[backward_messages != node_combo[0]]
                 incoming_parent_messages = np.concatenate((messages[[node_combo[1]+len(parents)]], messages[backward_messages]))
@@ -241,7 +243,7 @@ def track_lineage_over_time(
                     parent_pos = combined / sum(combined)
                 else:
                     parent_pos = np.ones((1,len(world_map.demes)))[0]
-
+                        
             bl_child, bl_parent = calc_length_to_node_combo(
                 times[element],
                 tree.time(node_combo[0]),

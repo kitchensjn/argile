@@ -1,4 +1,13 @@
 --------------------
+[0.0.4] - 2026-11-17
+--------------------
+
+Slightly speed up likelihood calculation when there are many uncoalesced lineages
+
+Fix an error in root location calculation when there are uncoalesced lineages
+
+
+--------------------
 [0.0.3] - 2026-10-29
 --------------------
 

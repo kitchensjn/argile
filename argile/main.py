@@ -9,7 +9,7 @@ from .world_map import WorldMap
 from .likelihood import calc_composite_likelihood_for_parameters
 
 
-def deconstruct_tree(tree, epochs):
+def deconstruct_tree(tree, epochs, ignore_uncoalesced=False):
     """Converts a `tskit.Tree` into primitive elements that can be passed to numba
 
     Parameters
@@ -31,7 +31,7 @@ def deconstruct_tree(tree, epochs):
         Nodes IDs in time ascending order
     """
 
-    num_nodes = len(tree.postorder())
+    num_nodes = tree.tree_sequence.num_nodes
     parents = np.full(num_nodes, -1, dtype="int64")
     branch_above = np.zeros((num_nodes, len(epochs)), dtype="int64")
     node_epoch = np.full(num_nodes, -1, dtype="int64")
@@ -55,9 +55,16 @@ def deconstruct_tree(tree, epochs):
         ids_asc_time[i] = node
         parents[node] = parent
         time_bin_widths[node] = 1
+
+    if ignore_uncoalesced:
+        roots = np.where(parents==-1)[0]
+        for root in roots:
+            if tree.time(root) == 0:
+                ids_asc_time = ids_asc_time[ids_asc_time != root]
+
     return parents, branch_above, node_epoch, time_bin_widths, ids_asc_time
 
-def deconstruct_trees(trees, epochs):
+def deconstruct_trees(trees, epochs, ignore_uncoalesced=False):
     """Converts list of `tskit.Tree`s into primitive elements that can be passed to numba
 
     Parameters
@@ -88,7 +95,7 @@ def deconstruct_trees(trees, epochs):
     iat = []
     all_branch_lengths = [[] for e in epochs]
     for tree in trees:
-        parents, branch_above, node_epoch, time_bin_widths, ids_asc_time = deconstruct_tree(tree, epochs)
+        parents, branch_above, node_epoch, time_bin_widths, ids_asc_time = deconstruct_tree(tree, epochs, ignore_uncoalesced=ignore_uncoalesced)
         pl.append(parents)
         bal.append(branch_above)
         nel.append(node_epoch)
@@ -169,7 +176,8 @@ def run_for_parameters(
         connections_path,
         samples_path,
         trees_dir_path,
-        chop_time=None
+        chop_time=None,
+        ignore_uncoalesced=False
     ):
 
     demes = pd.read_csv(demes_path, sep="\t")
@@ -193,7 +201,7 @@ def run_for_parameters(
             tree = decap.subset(nodes=np.where(decap.tables.nodes.time <= chop_time)[0])
         trees.append(tree.simplify().first())
 
-    parents, branch_above, node_epoch, time_bin_widths, ids_asc_time, unique_branch_lengths = deconstruct_trees(trees=trees, epochs=world_map.epochs)
+    parents, branch_above, node_epoch, time_bin_widths, ids_asc_time, unique_branch_lengths = deconstruct_trees(trees=trees, epochs=world_map.epochs, ignore_uncoalesced=ignore_uncoalesced)
 
     return calc_composite_likelihood_for_parameters(
         parameters,
@@ -213,6 +221,7 @@ def run(
         samples_path,
         trees_dir_path,
         chop_time=None,
+        ignore_uncoalesced=False,
         output_file=None,
         verbose=False
     ):
@@ -270,7 +279,7 @@ def run(
             tree = decap.subset(nodes=np.where(decap.tables.nodes.time <= chop_time)[0])
         trees.append(tree.simplify().first())
 
-    parents, branch_above, node_epoch, time_bin_widths, ids_asc_time, unique_branch_lengths = deconstruct_trees(trees=trees, epochs=world_map.epochs)
+    parents, branch_above, node_epoch, time_bin_widths, ids_asc_time, unique_branch_lengths = deconstruct_trees(trees=trees, epochs=world_map.epochs, ignore_uncoalesced=ignore_uncoalesced)
 
     start = []
     bounds = []
@@ -283,7 +292,7 @@ def run(
             bounds.append((0, 1))
         else:
             start.append(0)
-            bounds.append((-10, 10))
+            bounds.append((-10, 0))
     
     res = minimize(
         fun=_run_from_minimize,
