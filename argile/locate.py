@@ -193,7 +193,10 @@ def track_lineage_over_time(
     
     sample_locations_array = world_map.sample_locations
     sample_ids = np.array(world_map.samples["id"])
-    parents, branch_above, node_epoch, time_bin_widths, ids_asc_time = deconstruct_tree(tree, world_map.epochs)
+    parents, branch_above, node_epoch, time_bin_widths, ids_asc_time = deconstruct_tree(
+        tree,
+        world_map.combined_epochs
+    )
     
     backward_transition_matrices = build_transition_matrices(world_map=world_map, parameters=parameters, direction="backward")
     forward_transition_matrices = build_transition_matrices(world_map=world_map, parameters=parameters, direction="forward")

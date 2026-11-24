@@ -95,7 +95,11 @@ def deconstruct_trees(trees, epochs, ignore_uncoalesced=False):
     iat = []
     all_branch_lengths = [[] for e in epochs]
     for tree in trees:
-        parents, branch_above, node_epoch, time_bin_widths, ids_asc_time = deconstruct_tree(tree, epochs, ignore_uncoalesced=ignore_uncoalesced)
+        parents, branch_above, node_epoch, time_bin_widths, ids_asc_time = deconstruct_tree(
+            tree,
+            epochs,
+            ignore_uncoalesced=ignore_uncoalesced
+        )
         pl.append(parents)
         bal.append(branch_above)
         nel.append(node_epoch)
@@ -201,7 +205,11 @@ def run_for_parameters(
             tree = decap.subset(nodes=np.where(decap.tables.nodes.time <= chop_time)[0])
         trees.append(tree.simplify().first())
 
-    parents, branch_above, node_epoch, time_bin_widths, ids_asc_time, unique_branch_lengths = deconstruct_trees(trees=trees, epochs=world_map.epochs, ignore_uncoalesced=ignore_uncoalesced)
+    parents, branch_above, node_epoch, time_bin_widths, ids_asc_time, unique_branch_lengths = deconstruct_trees(
+        trees=trees,
+        epochs=world_map.combined_epochs,
+        ignore_uncoalesced=ignore_uncoalesced
+    )
 
     return calc_composite_likelihood_for_parameters(
         parameters,
@@ -279,7 +287,11 @@ def run(
             tree = decap.subset(nodes=np.where(decap.tables.nodes.time <= chop_time)[0])
         trees.append(tree.simplify().first())
 
-    parents, branch_above, node_epoch, time_bin_widths, ids_asc_time, unique_branch_lengths = deconstruct_trees(trees=trees, epochs=world_map.epochs, ignore_uncoalesced=ignore_uncoalesced)
+    parents, branch_above, node_epoch, time_bin_widths, ids_asc_time, unique_branch_lengths = deconstruct_trees(
+        trees=trees,
+        epochs=world_map.combined_epochs,
+        ignore_uncoalesced=ignore_uncoalesced
+    )
 
     start = []
     bounds = []

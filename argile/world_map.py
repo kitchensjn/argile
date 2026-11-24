@@ -41,18 +41,22 @@ class WorldMap:
         Information about demes, one row per deme. Mandatory columns are `id` and `suitability`, often includes `xcoord` and `ycoord` for plotting
     connections : pandas.DataFrame
         Information about connections between demes. Mandatory columns are `id`, `deme_0`, `deme_1`, and `migration_modifier`. ID in `deme_0` must be smaller than ID in `deme_1`
-    samples : pandas.DataFrame
-        Information about sample locations. Mandatory columns `id` and `deme`
-    epochs : numpy.ndarray
-        Increasing epoch timings (back in time) based on changes noted in the `demes.suitability` and `connections.migration_modifier` columns
-    epoch_durations : numpy.ndarray
-        Ordered epoch durations, built directly from `epochs`
-    sample_locations : numpy.ndarray
-        Probability of finding each sample in each deme (#samples x #demes)
     suitabilities : numpy.ndarray
         2D array which contains suitability information for all demes over time (#epochs x #demes). Order is the same as `epochs` and `demes.id`
+    suitability_epochs : numpy.ndarray
+        Ordered epoch durations for suitability changes
     migration_modifiers : numpy.ndarray
         2D array which contains migration modifiers for all connections over time (#epochs x #connections). Order is the same as `epochs` and `connections.id`
+    migration_modifier_epochs : numpy.ndarray
+        Ordered epoch durations for migration modifier changes
+    combined_epochs : numpy.ndarray
+        Increasing epoch timings (back in time) based on changes noted in the `demes.suitability` and `connections.migration_modifier` columns
+    combined_epoch_durations : numpy.ndarray
+        Ordered epoch durations as a combination of `suitability_epochs` and `migration_modifier_epochs`
+    samples : pandas.DataFrame
+        Information about sample locations. Mandatory columns `id` and `deme`
+    sample_locations : numpy.ndarray
+        Probability of finding each sample in each deme (#samples x #demes)
     parameters : numpy.ndarray
         Available variables within the map, including the default migration rate ("coefficient") and any variables in the `migration.migration_modifier` column
     """
@@ -109,9 +113,9 @@ class WorldMap:
 
         self.migration_modifiers = self._build_migration_modifiers_array()
 
-        self.epochs = np.concatenate((self.suitability_epochs, self.migration_modifier_epochs))
-        self.epochs = np.unique(self.epochs)
-        self.epoch_durations = np.diff(self.epochs, append=(self.epochs[-1]-1))
+        self.combined_epochs = np.concatenate((self.suitability_epochs, self.migration_modifier_epochs))
+        self.combined_epochs = np.unique(self.combined_epochs)
+        self.combined_epoch_durations = np.diff(self.combined_epochs, append=(self.combined_epochs[-1]-1))
 
         modifiers = np.unique(self.migration_modifiers)
         if len(modifiers) > 1:
@@ -187,6 +191,21 @@ class WorldMap:
         epoch_index = np.where(self.suitability_epochs<=time)[0][-1]
         suitabilities = self.suitabilities[epoch_index]
         return suitabilities
+    
+    def suitabilities_by_combined_epochs(self):
+        """Suitabilities of every deme in every epoch of `world_map.epochs`
+
+        `WorldMap.suitabilities` has one row per suitability epoch, but `WorldMap.epochs` also contains
+        the epochs at which migration modifiers change, and node epochs index into `WorldMap.epochs`.
+
+        Returns
+        -------
+        suitabilities : numpy.ndarray
+            Shape is #epochs x #demes
+        """
+
+        rows = np.searchsorted(world_map.suitability_epochs, world_map.combined_epochs, side="right") - 1
+        return world_map.suitabilities[rows]
 
     def get_connection_migration_modifier_at_time(self, id, time):
         connection_index = np.where(self.connections["id"]==id)[0][0]
@@ -220,6 +239,21 @@ class WorldMap:
                     relevant_epochs = np.where(self.migration_modifier_epochs>=time)[0]
                 migration_modifiers[relevant_epochs, j] = mod
         return migration_modifiers
+
+    def migration_modifiers_by_combined_epochs(self):
+        """Migration_modifiers of every connections in every epoch of `world_map.combined_epochs`
+
+        `WorldMap.migration_modifiers` has one row per migration modifier epoch, but `WorldMap.combined_epochs` also contains
+        the epochs at which suitabilities change, and node epochs index into `WorldMap.combined_epochs`.
+
+        Returns
+        -------
+        suitabilities : numpy.ndarray
+            Shape is #epochs x #demes
+        """
+
+        rows = np.searchsorted(world_map.migration_modifier_epochs, world_map.combined_epochs, side="right") - 1
+        return world_map.migration_modifiers[rows]
 
     def _build_sample_locations_array(self):
         """Formats the sample locations into probability distribution vectors
@@ -273,6 +307,6 @@ class WorldMap:
             self.suitability_epochs = np.array(suitability_epochs)
             self.suitabilities = np.array(suitabilities)
 
-            self.epochs = np.concatenate((self.suitability_epochs, self.migration_modifier_epochs))
-            self.epochs = np.unique(self.epochs)
-            self.epoch_durations = np.diff(self.epochs, append=(self.epochs[-1]-1))
+            self.combined_epochs = np.concatenate((self.suitability_epochs, self.migration_modifier_epochs))
+            self.combined_epochs = np.unique(self.combined_epochs)
+            self.combined_epoch_durations = np.diff(self.combined_epochs, append=(self.combined_epochs[-1]-1))

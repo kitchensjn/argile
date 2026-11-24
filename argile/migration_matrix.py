@@ -44,11 +44,11 @@ def build_transition_matrices(world_map, parameters, direction="backward"):
     if len(parameters) != len(world_map.parameters):
         raise RuntimeError("Length of `parameters` does not equal WorldMap.parameters. You must provide values for all parameters, in order.")
 
-    transition_matrix = np.zeros((len(world_map.epochs), len(world_map.demes),len(world_map.demes)))
-    for e in range(len(world_map.epochs)):
+    transition_matrix = np.zeros((len(world_map.combined_epochs), len(world_map.demes),len(world_map.demes)))
+    for e in range(len(world_map.combined_epochs)):
         
-        se = np.where(world_map.suitability_epochs<=world_map.epochs[e])[0][-1]
-        mme = np.where(world_map.migration_modifier_epochs<=world_map.epochs[e])[0][-1]
+        se = np.where(world_map.suitability_epochs<=world_map.combined_epochs[e])[0][-1]
+        mme = np.where(world_map.migration_modifier_epochs<=world_map.combined_epochs[e])[0][-1]
 
         for f,connection in world_map.connections.iterrows():
             

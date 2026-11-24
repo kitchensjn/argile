@@ -568,11 +568,11 @@ def calc_composite_likelihood_for_parameters(
     precalculated_full_epoch_branch_lengths = np.zeros(backward_transition_matrices.shape)
     for i in range(len(backward_transition_matrices)):
         exponentiated_backward_transition_matrices[i] = scipy.linalg.expm(backward_transition_matrices[i])
-        if world_map.epoch_durations[i] != -1:
-            precalculated_full_epoch_branch_lengths[i] = matrix_power(exponentiated_backward_transition_matrices[i], world_map.epoch_durations[i])
+        if world_map.combined_epoch_durations[i] != -1:
+            precalculated_full_epoch_branch_lengths[i] = matrix_power(exponentiated_backward_transition_matrices[i], world_map.combined_epoch_durations[i])
     precalculated_full_epoch_branch_lengths_log = np.log(np.maximum(precalculated_full_epoch_branch_lengths, 1e-99))
 
-    pop_sizes = np.maximum(world_map.suitabilities, 1e-99)
+    pop_sizes = np.maximum(world_map.suitabilities_by_combined_epochs, 1e-99)
     coal_rates_log = np.log(1 / (np.maximum(pop_sizes, 0.1)))
 
     composite_likelihood = _process_trees(        
@@ -583,7 +583,7 @@ def calc_composite_likelihood_for_parameters(
         sample_locations_array_log=sample_locations_array_log,
         sample_ids=sample_ids,
         exponentiated_backward_transition_matrices=exponentiated_backward_transition_matrices,
-        epoch_durations=world_map.epoch_durations,
+        epoch_durations=world_map.combined_epoch_durations,
         precalculated_transitions_log=precalculated_full_epoch_branch_lengths_log,
         coal_rates_log=coal_rates_log
     )
