@@ -201,7 +201,7 @@ def track_lineage_over_time(
     backward_transition_matrices = build_transition_matrices(world_map=world_map, parameters=parameters, direction="backward")
     forward_transition_matrices = build_transition_matrices(world_map=world_map, parameters=parameters, direction="forward")
 
-    pop_sizes = np.maximum(world_map.suitabilities ** alpha, 1e-99)
+    pop_sizes = np.maximum(world_map.suitabilities_by_combined_epochs(), 1e-99)
     coal_rates = 1/(np.maximum(pop_sizes, 0.1))
 
     messages = calc_all_messages(

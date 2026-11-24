@@ -1,4 +1,15 @@
 --------------------
+[0.0.6] - 2026-11-24
+--------------------
+
+Changed `WorldMap.epochs` to `WorldMap.combined_epochs`
+
+Claude discovered a bug where I was interating over `WorldMap.suitability_epochs` rather than `WorldMap.combined_epochs`
+
+Added `WorldMap.suitabilities_by_combined_epochs()`
+
+
+--------------------
 [0.0.5] - 2026-11-24
 --------------------
 
