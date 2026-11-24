@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def _calculate_migration_rate(world_map, epoch, connection, deme_0, deme_1, parameters, direction="backward"):
+def _calculate_migration_rate(world_map, epochs, connection, deme_0, deme_1, parameters, direction="backward"):
     """Migration rate is default rate * suit(deme_1)/suit(deme_0) * modifier"""
 
     if "coefficient" in world_map.parameters:
@@ -9,14 +9,14 @@ def _calculate_migration_rate(world_map, epoch, connection, deme_0, deme_1, para
     else:
         m = 1
 
-    suit_0 = world_map.suitabilities[epoch][deme_0]
-    suit_1 = world_map.suitabilities[epoch][deme_1]
+    suit_0 = world_map.suitabilities[epochs[0]][deme_0]
+    suit_1 = world_map.suitabilities[epochs[0]][deme_1]
     if suit_0 == 0 or suit_1 == 0:
         suit_ratio = 0
     else:
         suit_ratio = min(suit_1/suit_0, 1000000)
 
-    mod = world_map.migration_modifiers[epoch][connection]
+    mod = world_map.migration_modifiers[epochs[1]][connection]
     if mod in world_map.parameters:
         mod = parameters[world_map.parameters.index(mod)]
     else:
@@ -46,12 +46,16 @@ def build_transition_matrices(world_map, parameters, direction="backward"):
 
     transition_matrix = np.zeros((len(world_map.epochs), len(world_map.demes),len(world_map.demes)))
     for e in range(len(world_map.epochs)):
+        
+        se = np.where(world_map.suitability_epochs<=world_map.epochs[e])[0][-1]
+        mme = np.where(world_map.migration_modifier_epochs<=world_map.epochs[e])[0][-1]
+
         for f,connection in world_map.connections.iterrows():
             
             i_0 = world_map.demes.loc[world_map.demes["id"]==connection["deme_0"]].index[0]
             i_1 = world_map.demes.loc[world_map.demes["id"]==connection["deme_1"]].index[0]                
-            transition_matrix[e, i_1, i_0] = _calculate_migration_rate(world_map=world_map, epoch=e, connection=f, deme_0=i_0, deme_1=i_1, parameters=parameters, direction=direction)
-            transition_matrix[e, i_0, i_1] = _calculate_migration_rate(world_map=world_map, epoch=e, connection=f, deme_0=i_1, deme_1=i_0, parameters=parameters, direction=direction)
+            transition_matrix[e, i_1, i_0] = _calculate_migration_rate(world_map=world_map, epochs=(se, mme), connection=f, deme_0=i_0, deme_1=i_1, parameters=parameters, direction=direction)
+            transition_matrix[e, i_0, i_1] = _calculate_migration_rate(world_map=world_map, epochs=(se, mme), connection=f, deme_0=i_1, deme_1=i_0, parameters=parameters, direction=direction)
 
         diag = -np.sum(transition_matrix[e], axis=0)
         np.fill_diagonal(transition_matrix[e], diag)

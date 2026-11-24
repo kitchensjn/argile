@@ -20,3 +20,4 @@ devlog/20250929/assets/low_coverage/dataset/arg.trees
 old/
 dist/
 argile.egg-info/
+testing.py

@@ -57,7 +57,7 @@ class WorldMap:
         Available variables within the map, including the default migration rate ("coefficient") and any variables in the `migration.migration_modifier` column
     """
 
-    def __init__(self, demes, connections, samples=None):
+    def __init__(self, demes, connections, samples=None, interpolate_suitability=False):
         """Initializes the WorldMap object
 
         Parameters
@@ -86,26 +86,33 @@ class WorldMap:
             formatted_modifier_strings.append(_format_parameter_string(modifier))
         self.connections["migration_modifier"] = formatted_modifier_strings
     
-        epochs = [0]
+        self.suitability_epochs = [0]
         for suitability_string in self.demes["suitability"]:
             epoch_formatter = suitability_string.replace(",", ":").split(":")
             for epoch_assignment in epoch_formatter[::2]:
                 epoch_assignment = int(float(epoch_assignment))
-                if epoch_assignment not in epochs:
-                    epochs.append(epoch_assignment)
+                if epoch_assignment not in self.suitability_epochs:
+                    self.suitability_epochs.append(epoch_assignment)
+        self.suitability_epochs = np.sort(self.suitability_epochs)
+
+        self.suitabilities = self._build_suitabilities_array()
+
+        self.migration_modifier_epochs = [0]
         migration_modifier_variables = []
         for modifier_string in self.connections["migration_modifier"]:
             epoch_formatter = modifier_string.replace(",", ":").split(":")
             for t in range(0, len(epoch_formatter), 2):
                 epoch_assignment = int(float(epoch_formatter[t]))
-                if epoch_assignment not in epochs:
-                    epochs.append(epoch_assignment)
-        self.epochs = np.sort(epochs)
-        self.epoch_durations = np.diff(self.epochs, append=(self.epochs[-1]-1))
-
-        self.suitabilities = self._build_suitabilities_array()
+                if epoch_assignment not in self.migration_modifier_epochs:
+                    self.migration_modifier_epochs.append(epoch_assignment)
+        self.migration_modifier_epochs = np.sort(self.migration_modifier_epochs)
 
         self.migration_modifiers = self._build_migration_modifiers_array()
+
+        self.epochs = np.concatenate((self.suitability_epochs, self.migration_modifier_epochs))
+        self.epochs = np.unique(self.epochs)
+        self.epoch_durations = np.diff(self.epochs, append=(self.epochs[-1]-1))
+
         modifiers = np.unique(self.migration_modifiers)
         if len(modifiers) > 1:
             for mod in modifiers:
@@ -118,10 +125,32 @@ class WorldMap:
             self.samples = samples.copy()
             self.sample_locations = self._build_sample_locations_array()
     
-    def get_deme_suitability_at_time(self, id, time):
-        """Gets the type for specified deme
+    def _build_suitabilities_array(self):
+        """Builds the suitability array described in class attributes
 
-        Wrapper of pandas.DataFrame function. Assumes that deme IDs are unique.
+        Returns
+        -------
+        suitabilities : np.array
+            Suitabilities of each deme in each suitability epoch
+        """
+
+        suitabilities = np.zeros((len(self.suitability_epochs), len(self.demes)), dtype="float")
+        for j, suitability_string in enumerate(self.demes["suitability"]):
+            suitability_string = suitability_string.split(",")
+            for e in range(len(suitability_string)):
+                time, suit = suitability_string[e].split(":")
+                time = float(time)
+                suit = float(suit)
+                if (len(suitability_string) > (e+1)):
+                    next_time = float(suitability_string[e+1].split(":")[0])
+                    relevant_epochs = np.where((self.suitability_epochs>=time)&(self.suitability_epochs<next_time))[0]
+                else:
+                    relevant_epochs = np.where(self.suitability_epochs>=time)[0]
+                suitabilities[relevant_epochs, j] = suit
+        return suitabilities
+
+    def get_deme_suitability_at_time(self, id, time):
+        """Gets the suitability of a deme at a specified time
 
         Parameters
         ----------
@@ -132,22 +161,17 @@ class WorldMap:
 
         Returns
         -------
-        deme_type : float
-            Type of deme
+        suitability : float
+            Suitability of deme at time
         """
 
-        deme_suitability = self.demes.loc[self.demes["id"]==id,"suitability"].iloc[0]
-        epochs = deme_suitability.split(",")
-        for t in range(len(epochs)-1):
-            details = epochs[t].split(":")
-            start = float(details[0])
-            end = float(epochs[t+1].split(":")[0])
-            if (time >= start) and (time < end):
-                return float(details[1])
-        return float(epochs[-1].split(":")[1])
-
+        deme_index = np.where(self.demes["id"]==id)[0][0]
+        epoch_index = np.where(self.suitability_epochs<=time)[0][-1]
+        suitability = self.suitabilities[epoch_index][deme_index]
+        return suitability
+    
     def get_all_deme_suitabilities_at_time(self, time):
-        """
+        """Gets the suitabilities of all demes at a specified time
 
         Parameters
         ----------
@@ -160,35 +184,42 @@ class WorldMap:
             Deme types ordered by the demes dataframe
         """
 
-        suitabilities_at_time = pd.Series([self.get_deme_suitability_at_time(id, time) for id in self.demes["id"]])
-        return suitabilities_at_time
+        epoch_index = np.where(self.suitability_epochs<=time)[0][-1]
+        suitabilities = self.suitabilities[epoch_index]
+        return suitabilities
 
     def get_connection_migration_modifier_at_time(self, id, time):
-        """Extracts the migration modifier for a connection at time
-
-        Parameters
-        ----------
-        id : int
-        time : int or float
-
-        Returns
-        -------
-        migration_modifier : str
-            Modifier of connection at specified time
-        """
-        connection_parameter = self.connections.loc[self.connections["id"]==id,"migration_modifier"].iloc[0]
-        epochs = connection_parameter.split(",")
-        for t in range(len(epochs)-1):
-            details = epochs[t].split(":")
-            start = float(details[0])
-            end = float(epochs[t+1].split(":")[0])
-            if (time >= start) and (time < end):
-                return details[1]
-        migration_modifier = epochs[-1].split(":")[1]
+        connection_index = np.where(self.connections["id"]==id)[0][0]
+        epoch_index = np.where(self.migration_modifier_epochs<=time)[0][-1]
+        migration_modifier = self.migration_modifier[epoch_index][connection_index]
         return migration_modifier
 
     def get_all_connection_migration_modifiers_at_time(self, time):
-        return pd.Series([self.get_connection_migration_modifier_at_time(id, time) for id in self.connections["id"]])
+        epoch_index = np.where(self.migration_modifier_epochs<=time)[0][-1]
+        migration_modifiers = self.migration_modifier[epoch_index]
+        return migration_modifiers
+
+    def _build_migration_modifiers_array(self):
+        """Builds the migration modifier array described in class attributes
+
+        Returns
+        -------
+        modifiers
+        """
+        
+        migration_modifiers = np.zeros((len(self.migration_modifier_epochs), len(self.connections)), dtype="object")
+        for j, modifier_string in enumerate(self.connections["migration_modifier"]):
+            modifier_string = modifier_string.split(",")
+            for e in range(len(modifier_string)):
+                time, mod = modifier_string[e].split(":")
+                time = float(time)
+                if (len(modifier_string) > (e+1)):
+                    next_time = float(modifier_string[e+1].split(":")[0])
+                    relevant_epochs = np.where((self.migration_modifier_epochs>=time)&(self.migration_modifier_epochs<next_time))[0]
+                else:
+                    relevant_epochs = np.where(self.migration_modifier_epochs>=time)[0]
+                migration_modifiers[relevant_epochs, j] = mod
+        return migration_modifiers
 
     def _build_sample_locations_array(self):
         """Formats the sample locations into probability distribution vectors
@@ -205,29 +236,43 @@ class WorldMap:
         for i, sample in self.samples.iterrows():
             sample_locations_array[i,self.demes.loc[self.demes["id"]==sample["deme"]].index[0]] = 1
         return sample_locations_array
-
-    def _build_suitabilities_array(self):
-        """Builds the suitability array described in class attributes
-
-        Returns
-        -------
-        suitabilities
-        """
-
-        suitabilities = np.zeros((len(self.epochs), len(self.demes)), dtype="float")
-        for i,epoch in enumerate(self.epochs):
-            suitabilities[i] = self.get_all_deme_suitabilities_at_time(epoch)
-        return suitabilities
     
-    def _build_migration_modifiers_array(self):
-        """Builds the migration modifier array described in class attributes
+    def linearly_interpolate_suitabilties(self, timesteps):
+        """Adds extra timepoints between epochs to smooth the transition between suitability values
 
-        Returns
-        -------
-        modifiers
+        Parameters
+        ----------
+        timesteps: int
         """
+        
+        if (timesteps < 0) or (not isinstance(timesteps, int)):
+            raise ValueError("`timesteps` must be a natural number (non-negative integer).")
+        
+        if timesteps > 0:
 
-        modifiers = np.zeros((len(self.epochs), len(self.connections)), dtype="object")
-        for i,epoch in enumerate(self.epochs):
-            modifiers[i] = self.get_all_connection_migration_modifiers_at_time(epoch)
-        return modifiers
+            suitability_epochs = []
+            suitabilities = []
+            already_included = list(self.suitability_epochs)
+            for i in range(len(self.suitability_epochs)-1):
+                a = self.suitability_epochs[i]
+                b = self.suitability_epochs[i+1]
+
+                suitability_epochs.append(a)
+                suitabilities.append(self.suitabilities[i])
+
+                step = (b - a) / (timesteps + 1)
+                for j in range(1, timesteps + 1):
+                    virtual = round(a + step * j)
+                    if (virtual not in already_included):
+                        suitability_epochs.append(virtual)
+                        suitabilities.append(self.suitabilities[i]*(((timesteps+1)-j)/(timesteps+1)) + self.suitabilities[i+1]*(j/(timesteps+1)))
+                        already_included.append(virtual)
+            suitability_epochs.append(self.suitability_epochs[-1])
+            suitabilities.append(self.suitabilities[-1])
+
+            self.suitability_epochs = np.array(suitability_epochs)
+            self.suitabilities = np.array(suitabilities)
+
+            self.epochs = np.concatenate((self.suitability_epochs, self.migration_modifier_epochs))
+            self.epochs = np.unique(self.epochs)
+            self.epoch_durations = np.diff(self.epochs, append=(self.epochs[-1]-1))

@@ -1,4 +1,13 @@
 --------------------
+[0.0.5] - 2026-11-24
+--------------------
+
+Created `WorldMap.suitability_epochs` and `WorldMap.migration_modifier_epochs` (#37)
+
+Reworked retrieval functions (#37)
+
+
+--------------------
 [0.0.4] - 2026-11-19
 --------------------
 
